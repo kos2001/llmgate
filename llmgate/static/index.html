@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>llmgate 대시보드</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="favicon.ico" sizes="48x48">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#2a78d6">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app" hidden>
+    <aside id="sidebar" aria-label="메뉴">
+      <a class="brand" href="#overview"><img class="logo" src="favicon.svg" alt="" width="30" height="30"><span>llmgate</span><span id="envbadge" class="envbadge" hidden>dev</span></a>
+      <nav id="nav"></nav>
+      <div id="sidefoot" class="sidefoot"></div>
+    </aside>
+    <div id="scrim" class="scrim"></div>
+    <div class="content">
+      <header class="topbar">
+        <button class="btn sm keep menu" id="menu" aria-label="메뉴 열기">☰</button>
+        <div id="crumb" class="crumb"></div>
+        <span class="spacer"></span>
+        <button class="btn sm keep" id="theme" title="테마 전환">테마</button>
+        <button class="btn sm keep" id="logout">로그아웃</button>
+      </header>
+      <main id="view"></main>
+    </div>
+  </div>
+  <main id="loginview"></main>
+  <div id="tooltip" hidden></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
