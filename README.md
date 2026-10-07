@@ -103,3 +103,7 @@ python -m pytest        # 141개: 프록시·폴백·스트리밍 / SSO 흐름·
 - **TLS 는 직접 처리하지 않습니다**(앞단 프록시에서 종료). 성능 측정치와 그 한계는 [docs/operations.md](docs/operations.md#성능-측정-그리고-한계)에 있습니다 — 단일 워커 약 300 req/s, 워커 확장 효과는 입증하지 못했습니다.
 - 저장소는 SQLite 입니다(소규모·중규모 트래픽용). 이 환경에서는 Docker를 쓸 수 없어 `Dockerfile`/`docker-compose.yml` 은 **빌드해 보지 못했습니다.**
 - OpenRouter의 웹검색(`:online`)·PDF 파서·BYOK·크레딧 결제·이미지 생성, LiteLLM의 Redis/시맨틱 캐시·Langfuse 콜백·배치/파일/어시스턴트 API 는 포함하지 않습니다. 자세한 대응표는 [docs/compat.md](docs/compat.md).
+
+## 라이선스
+
+[MIT](LICENSE) © 2026 kos2001

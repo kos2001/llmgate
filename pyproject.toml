@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]  # 77+: SPDX `license` expressions (PEP 639)
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,6 +7,8 @@ name = "llmgate"
 version = "0.1.0"
 description = "OpenRouter-style gateway for self-hosted LLM engines (vLLM, Ollama, TGI, ...): model registry, API keys, routing and token usage tracking."
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.110",
