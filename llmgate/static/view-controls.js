@@ -1,4 +1,4 @@
-import { h, mount, fmt, api, guard, formDialog, confirmAction, toast, num } from './lib.js';
+import { h, mount, fmt, api, guard, formDialog, confirmAction, toast, num, bytes, download } from './lib.js';
 import { rankBars } from './charts.js';
 
 const KINDS = {
@@ -32,9 +32,9 @@ async function guardrailForm(rule) {
 }
 
 export async function render(root) {
-  const [rules, cache, aliases, customers, models, tags] = await Promise.all([
+  const [rules, cache, aliases, customers, models, tags, store] = await Promise.all([
     api('GET', '/guardrails'), api('GET', '/cache'), api('GET', '/aliases'), api('GET', '/customers'),
-    api('GET', '/models'), api('GET', '/usage/tags?days=30'),
+    api('GET', '/models'), api('GET', '/usage/tags?days=30'), api('GET', '/storage'),
   ]);
   const reload = () => render(root);
   const run = (fn) => () => guard(async () => { await fn(); await reload(); });
@@ -103,6 +103,20 @@ export async function render(root) {
   const tagCard = section('태그별 지출 (30일) — 요청의 "tags" / metadata.tags',
     rankBars(tags, { value: (t) => t.cost_usd, format: (n) => fmt.usd(n), tip: (t) => [t.name, `요청 ${fmt.int(t.requests)}`, `토큰 ${fmt.int(t.total_tokens)}`, `비용 ${fmt.usd(t.cost_usd)}`] }));
 
+  const day = (ts) => (ts ? new Date(ts * 1000).toLocaleDateString('ko-KR') : '–');
+  const storageCard = section('저장소 · 데이터 보존',
+    h('div', { class: 'row', style: 'gap:24px' }, ...[['DB 크기', bytes(store.size_bytes)], ['사용 로그', fmt.int(store.rows.usage_logs)], ['감사 로그', fmt.int(store.rows.audit_logs)]]
+      .map(([l, v]) => h('div', {}, h('div', { class: 'muted' }, l), h('div', { style: 'font-size:20px;font-weight:600' }, v)))),
+    h('p', { class: 'hint' }, `가장 오래된 기록 ${day(store.oldest_usage_ts)} · 자동 삭제 ${store.retention.usage_days ? store.retention.usage_days + '일 보존' : '꺼짐 (LLMGATE_USAGE_RETENTION_DAYS)'}`),
+    h('div', { class: 'row' },
+      h('button', { class: 'btn sm keep', onclick: () => guard(() => download('/usage/export?days=3660&format=csv', 'llmgate-usage.csv')) }, '전체 CSV 내보내기'),
+      h('button', { class: 'btn sm danger adm', onclick: () => guard(async () => {
+        const v = await formDialog('오래된 사용 로그 삭제', [{ name: 'days', label: '이 일수보다 오래된 사용 로그를 삭제합니다', type: 'number', value: 90 }]);
+        if (v && await confirmAction(`${v.days}일보다 오래된 사용 로그를 삭제할까요? 되돌릴 수 없습니다.`)) {
+          const r = await api('POST', `/storage/prune?days=${Number(v.days)}`); toast(`${fmt.int(r.usage_logs)}건 삭제`); await reload();
+        }
+      }) }, '오래된 로그 삭제')));
+
   mount(root, h('h2', {}, '제어 · 가드레일'), h('div', { style: 'margin-bottom:16px' }, guardrails),
-    h('div', { class: 'grid wide' }, cacheCard, tagCard), h('div', { class: 'grid wide' }, customerCard, aliasCard));
+    h('div', { class: 'grid wide' }, cacheCard, storageCard, tagCard), h('div', { class: 'grid wide' }, customerCard, aliasCard));
 }

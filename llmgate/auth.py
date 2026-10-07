@@ -61,15 +61,24 @@ def _touch(db: Database, key: dict[str, Any]) -> None:
 async def authenticate(request: Request) -> AuthContext:
     """Resolve the caller of the inference API: an ``sk-lg-…`` key, or an IdP-issued JWT bound to a service."""
     db: Database = request.app.state.db
+    throttle = request.app.state.throttle
+    ip = request.client.host if request.client else "?"
+    throttle.check(ip)
     token = _bearer(request)
     if not token:
         raise GatewayError(401, "Missing API key. Send 'Authorization: Bearer <key>'.",
                            type="authentication_error", code="missing_api_key")
     if looks_like_jwt(token):  # API keys are never shaped like a JWT
-        return await _authenticate_jwt(request, token)
+        try:
+            return await _authenticate_jwt(request, token)
+        except GatewayError as exc:
+            if exc.status_code == 401:
+                throttle.fail(ip)
+            raise
 
     key = db.one("SELECT * FROM api_keys WHERE key_hash = ?", (hash_key(token),))
     if key is None:
+        throttle.fail(ip)
         raise GatewayError(401, "Invalid API key.", type="authentication_error", code="invalid_api_key")
     if not key["enabled"]:
         raise GatewayError(403, "This API key has been disabled.", type="permission_error", code="key_disabled")

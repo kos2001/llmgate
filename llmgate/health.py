@@ -11,6 +11,7 @@ from typing import Any
 
 import httpx
 
+from . import secretbox
 from .config import Settings
 from .db import Database, now
 
@@ -56,7 +57,8 @@ def engine_root(base_url: str) -> str:
 
 
 def _auth(provider: dict[str, Any]) -> dict[str, str]:
-    return {"authorization": f"Bearer {provider['api_key']}"} if provider.get("api_key") else {}
+    key = secretbox.decrypt(provider.get("api_key"))
+    return {"authorization": f"Bearer {key}"} if key else {}
 
 
 async def check_provider(client: httpx.AsyncClient, provider: dict[str, Any], settings: Settings) -> dict[str, Any]:
@@ -134,7 +136,7 @@ class HealthMonitor:
         providers = self.db.query("SELECT * FROM providers WHERE enabled = 1")
         results = await asyncio.gather(
             *(check_provider(self.client, p, self.settings) for p in providers), return_exceptions=True)
-        for provider, result in zip(providers, results):
+        for provider, result in zip(providers, results, strict=True):
             if isinstance(result, Exception):
                 log.warning("health check crashed for %s: %r", provider["name"], result)
                 continue

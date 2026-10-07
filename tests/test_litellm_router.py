@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import pytest
 
 from conftest import admin
 from test_routing_prefs import chat, key, model, provider

@@ -94,6 +94,8 @@ llmgate/api_litellm_*.py LiteLLM 호환 관리 API     litellm_config.py   confi
 llmgate/static/          대시보드(바닐라 JS, 빌드 없음: DOM 은 h() 로만 만들어 XSS 방지). 사이드바 카테고리는 app.js 의 NAV, 색은 style.css 의 [data-cat]
 llmgate/seed.py seed_data.py   샘플 데이터(정의 / 삽입·사용 기록 생성)       dev.py   llmgate dev
 tools/make_icons.py      favicon.svg 에서 ICO/PNG 아이콘 재생성(Chrome 필요)
+tools/bench.py           게이트웨이 오버헤드 측정(mock · 게이트웨이 · 부하 생성기를 별도 프로세스로)
+llmgate/secheaders.py throttle.py secretbox.py storage.py admin_storage.py   보안 헤더 · 인증 실패 제한 · 키 암호화 · 보존/백업 · 내보내기
 mockvllm/ mockoidc/      개발·테스트용 엔진 / IdP
 ```
 

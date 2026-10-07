@@ -16,7 +16,6 @@ from .errors import GatewayError
 from .health import apply_check, check_provider
 from .litellm_config import add_deployment, import_config, parse_yaml
 from .rbac import admin_guard
-from .security import hash_key
 from .tokens import content_text, estimate_tokens
 
 router = APIRouter(tags=["litellm"])

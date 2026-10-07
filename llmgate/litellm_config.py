@@ -13,6 +13,7 @@ import re
 from typing import Any
 from urllib.parse import urlparse
 
+from . import secretbox
 from .db import Database, now
 from .errors import GatewayError
 
@@ -48,7 +49,7 @@ def _ensure_provider(db: Database, api_base: str, kind: str, api_key: str | None
     if existing:
         return existing
     pid = db.insert("INSERT INTO providers (name, kind, base_url, api_key, timeout_s, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-                    (name or _provider_name(base), kind, base, api_key, timeout, now()))
+                    (name or _provider_name(base), kind, base, secretbox.encrypt(api_key), timeout, now()))
     return db.one("SELECT * FROM providers WHERE id = ?", (pid,))  # type: ignore[return-value]
 
 

@@ -3,6 +3,9 @@ import { stackedColumns, rankBars } from './charts.js';
 
 const PERIODS = [['24시간', 1, 'hour'], ['7일', 7, 'day'], ['30일', 30, 'day']];
 let period = 1;
+let timer = null;
+const AUTO_KEY = 'llmgate_overview_auto';
+const autoOn = () => { try { return localStorage.getItem(AUTO_KEY) === '1'; } catch { return false; } };
 
 // Each metric has its own colour + icon; the colour tints the card edge, the icon chip and the corner accent.
 function stat(label, value, sub, color, ico) {
@@ -17,6 +20,7 @@ function buckets(days, bucket) {
 }
 
 export async function render(root) {
+  clearTimeout(timer);
   const [, days, bucket] = PERIODS.find((p) => p[1] === period);
   const [ov, series] = await Promise.all([
     api('GET', `/overview?days=${days}`),
@@ -38,7 +42,12 @@ export async function render(root) {
 
   mount(root, 
     h('div', { class: 'row between', style: 'margin-bottom:16px' }, h('h2', { style: 'margin:0' }, '개요'),
-      h('div', { class: 'row' }, PERIODS.map(([label, d]) => h('button', { class: 'btn sm keep' + (d === period ? ' primary' : ''), onclick: () => { period = d; render(root); } }, label)))),
+      h('div', { class: 'row' },
+        h('label', { class: 'row ink2', title: '10초마다 숫자와 차트를 갱신합니다' }, h('input', { type: 'checkbox', checked: autoOn(), onchange: (e) => {
+          try { localStorage.setItem(AUTO_KEY, e.target.checked ? '1' : '0'); } catch { /* ignore */ }
+          render(root);
+        } }), '자동 새로고침'),
+        PERIODS.map(([label, d]) => h('button', { class: 'btn sm keep' + (d === period ? ' primary' : ''), onclick: () => { period = d; render(root); } }, label)))),
     h('div', { class: 'grid' },
       stat('요청 수', fmt.int(t.requests), `성공률 ${fmt.pct(okRate)}`, 'blue', 'requests'),
       stat('총 토큰', fmt.compact(t.total_tokens), `입력 ${fmt.compact(t.prompt_tokens)} · 출력 ${fmt.compact(t.completion_tokens)}`, 'violet', 'tokens'),
@@ -53,4 +62,6 @@ export async function render(root) {
         rankBars(ov.top_models, { tip: (m) => [m.name, `요청 ${fmt.int(m.requests)}`, `토큰 ${fmt.int(m.total_tokens)}`, `비용 ${fmt.usd(m.cost_usd)}`] })),
       h('div', { class: 'card' }, h('h3', {}, '서비스별 토큰 Top 5'),
         rankBars(ov.top_services, { tip: (m) => [m.name, `요청 ${fmt.int(m.requests)}`, `토큰 ${fmt.int(m.total_tokens)}`, `비용 ${fmt.usd(m.cost_usd)}`] }))));
+  if (autoOn()) timer = setTimeout(() => { if (root.isConnected) render(root).catch(() => {}); }, 10000);  // stops by itself once the page is left
 }
+

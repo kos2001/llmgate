@@ -1,4 +1,4 @@
-import { h, mount, fmt, api, status } from './lib.js';
+import { h, mount, fmt, api, status, download, guard } from './lib.js';
 
 const state = { days: 7, group: 'model', service: '', model: '', errors: false, offset: 0 };
 const PAGE = 25;
@@ -43,7 +43,9 @@ export async function render(root) {
       h('div', { class: 'table-wrap' }, summary.length ? sumTable : h('p', { class: 'muted' }, '해당 기간의 데이터가 없습니다.'))),
     h('div', { class: 'card' },
       h('div', { class: 'row between' }, h('h3', {}, `요청 로그 (${fmt.int(logs.total)}건)`),
-        h('label', { class: 'row ink2' }, h('input', { type: 'checkbox', checked: state.errors, onchange: (e) => redo({ errors: e.target.checked }) }), '오류만')),
+        h('div', { class: 'row' },
+          ...['csv', 'jsonl'].map((f) => h('button', { class: 'btn sm keep', title: '현재 기간·필터로 내보내기', onclick: () => guard(() => download(`/usage/export?${qs}&only_errors=${state.errors}&format=${f}`, `llmgate-usage.${f}`)) }, f === 'csv' ? 'CSV 내보내기' : 'JSONL')),
+        h('label', { class: 'row ink2' }, h('input', { type: 'checkbox', checked: state.errors, onchange: (e) => redo({ errors: e.target.checked }) }), '오류만'))),
       h('div', { class: 'table-wrap' }, logs.data.length ? logTable : h('p', { class: 'muted' }, '로그가 없습니다.')),
       h('div', { class: 'row', style: 'margin-top:12px' }, h('span', { class: 'muted' }, logs.total ? `${state.offset + 1}–${to} / ${fmt.int(logs.total)}  (~ 는 엔진이 usage를 주지 않아 추정한 값)` : ''),
         h('span', { class: 'spacer' }),

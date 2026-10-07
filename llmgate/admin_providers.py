@@ -7,6 +7,7 @@ import httpx
 from fastapi import APIRouter, Request
 
 from .admin_common import ADMIN_DEPS, bool_cols, flags, get_db, insert_row, require_row, update_row
+from . import secretbox
 from .db import now
 from .errors import GatewayError
 from .health import apply_check, check_provider
@@ -47,6 +48,7 @@ def list_providers(request: Request) -> list[dict[str, Any]]:
 def create_provider(body: ProviderCreate, request: Request) -> dict[str, Any]:
     db = get_db(request)
     values = bool_cols({**body.model_dump(), "created_at": now()}, "enabled")
+    values["api_key"] = secretbox.encrypt(values.get("api_key"))
     pid = insert_row(db, "providers", values)
     return present(require_row(db, "providers", pid, "Provider"))
 
@@ -60,7 +62,10 @@ def get_provider(provider_id: int, request: Request) -> dict[str, Any]:
 def update_provider(provider_id: int, body: ProviderUpdate, request: Request) -> dict[str, Any]:
     db = get_db(request)
     require_row(db, "providers", provider_id, "Provider")
-    update_row(db, "providers", provider_id, bool_cols(body.model_dump(exclude_unset=True), "enabled"))
+    changes = bool_cols(body.model_dump(exclude_unset=True), "enabled")
+    if "api_key" in changes:
+        changes["api_key"] = secretbox.encrypt(changes["api_key"])
+    update_row(db, "providers", provider_id, changes)
     return present(require_row(db, "providers", provider_id, "Provider"))
 
 
@@ -85,7 +90,8 @@ async def sync_models(provider_id: int, request: Request, register: bool = False
     """List the models the engine serves; with ``register=true`` add the missing ones to the registry."""
     st = request.app.state
     provider = require_row(st.db, "providers", provider_id, "Provider")
-    headers = {"authorization": f"Bearer {provider['api_key']}"} if provider["api_key"] else {}
+    api_key = secretbox.decrypt(provider["api_key"])
+    headers = {"authorization": f"Bearer {api_key}"} if api_key else {}
     try:
         resp = await st.client.get(provider["base_url"] + "/models", headers=headers, timeout=st.settings.health_timeout_s * 2)
         resp.raise_for_status()

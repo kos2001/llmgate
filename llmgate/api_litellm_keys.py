@@ -7,14 +7,13 @@ end-user (the ``user`` field of a request).
 
 from __future__ import annotations
 
-import time
 from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, Field
 
-from .admin_common import encode_json, get_db, insert_row, parse_duration, prepare_limits, update_row
+from .admin_common import get_db, insert_row, parse_duration, prepare_limits, update_row
 from .auth import authenticate
 from .db import Database, now
 from .errors import GatewayError

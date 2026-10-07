@@ -157,6 +157,22 @@ export const confirmAction = (msg) => new Promise((resolve) => {
   dlg.showModal();
 });
 
+/** Download an authenticated admin endpoint as a file (a plain link cannot send the bearer token). */
+export async function download(path, fallbackName) {
+  const token = auth.get();
+  const res = await fetch('/admin/api' + path, { credentials: 'same-origin', headers: { 'x-llmgate-csrf': '1', ...(token ? { Authorization: 'Bearer ' + token } : {}) } });
+  if (!res.ok) throw new ApiError(res.status, (await res.json().catch(() => ({}))).error?.message || res.statusText);
+  const name = /filename="([^"]+)"/.exec(res.headers.get('content-disposition') || '')?.[1] || fallbackName;
+  const url = URL.createObjectURL(await res.blob());
+  const a = h('a', { href: url, download: name });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+export const bytes = (n) => (n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1048576).toFixed(1)} MB`);
+
 export const num = (v) => (v === '' || v == null ? null : Number(v));
 export const status = (s) => h('span', { class: 'pill ' + s }, { healthy: '정상', unhealthy: '장애', unknown: '확인 전', ok: '성공', error: '실패', active: '활성', off: '비활성' }[s] || s);
 
