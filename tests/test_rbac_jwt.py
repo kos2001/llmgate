@@ -4,7 +4,6 @@ import time
 
 import httpx
 import jwt
-import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 from conftest import ADMIN, admin, bearer, idp_token, sso_login

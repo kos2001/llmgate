@@ -17,6 +17,7 @@ from .admin_access import router as access_router
 from .admin_ctl import router as ctl_router
 from .admin_models import router as models_router
 from .admin_providers import router as providers_router
+from .admin_storage import router as storage_router
 from .admin_users import router as users_router
 from .admin_usage import router as usage_router
 from .api_auth import router as auth_router
@@ -35,6 +36,10 @@ from .health import HealthMonitor
 from .jwtutil import new_secret
 from .limits import RateLimiter
 from .oidc import OIDCClient
+from . import secretbox
+from .secheaders import SecurityHeaders
+from .storage import Janitor
+from .throttle import AuthThrottle
 from .router_state import RouterState
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -52,6 +57,7 @@ class _RevalidatedStatic(StaticFiles):
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
+    secretbox.configure(settings.encryption_key)  # fail at startup on a malformed key, not mid-request
     db = Database(settings.database_path)
 
     @asynccontextmanager
@@ -67,10 +73,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         monitor = HealthMonitor(db, app.state.client, settings, app.state.alerter)
         app.state.monitor = monitor
         monitor.start()
+        janitor = Janitor(db, settings.usage_retention_days, settings.audit_retention_days)
+        janitor.start()
         try:
             yield
         finally:
             await monitor.stop()
+            await janitor.stop()
             await app.state.broadcast.stop()
             await app.state.alerter.sink.stop()
             await app.state.client.aclose()
@@ -81,6 +90,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.db = db
     app.state.limiter = RateLimiter()
+    app.state.throttle = AuthThrottle(settings.auth_fail_limit, settings.auth_fail_window_s)
     app.state.broadcast = Broadcaster(settings.usage_webhook_url)
     app.state.alerter = Alerter(settings)
     app.state.router = RouterState(settings)
@@ -95,10 +105,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                        expose_headers=["x-request-id", "x-llmgate-provider"])
     app.add_exception_handler(GatewayError, gateway_error_handler)
     app.add_middleware(AuditMiddleware, db=db)
+    app.add_middleware(SecurityHeaders)  # outermost: also covers CORS preflights and error responses
 
     app.include_router(openai_router)
     app.include_router(auth_router)
-    for r in (compat_router, litellm_keys_router, litellm_ops_router, providers_router, models_router, access_router, usage_router, users_router, ctl_router):
+    for r in (compat_router, litellm_keys_router, litellm_ops_router, providers_router, models_router, access_router, usage_router, users_router, ctl_router, storage_router):
         app.include_router(r)
 
     @app.get("/docs", include_in_schema=False)
@@ -186,6 +197,25 @@ def _seed_cmd(args: Any) -> None:
         print(f"  {name:26} {key}")
 
 
+def _backup(out: str) -> None:
+    from . import storage
+
+    settings = get_settings()
+    size = storage.backup(settings.database_path, out)
+    print(f"Backed up {settings.database_path} -> {out} ({size:,} bytes). It holds key hashes and provider credentials: keep it private.")
+
+
+def _encrypt_secrets(dry_run: bool) -> None:
+    settings = get_settings()
+    if not settings.encryption_key:
+        raise SystemExit("Set LLMGATE_ENCRYPTION_KEY first (generate one with `llmgate genkey`).")
+    secretbox.configure(settings.encryption_key)
+    db = Database(settings.database_path)
+    result = secretbox.rewrap_provider_keys(db, dry_run=dry_run)
+    print(f"{'[dry run] ' if dry_run else ''}provider keys in {settings.database_path}: {result['encrypted']} encrypted, "
+          f"{result['rotated']} re-encrypted with the primary key, {result['unchanged']} unchanged")
+
+
 def run() -> None:
     import argparse
 
@@ -200,6 +230,11 @@ def run() -> None:
     imp.add_argument("--dry-run", action="store_true", help="show what would change, write nothing")
     from . import dev
 
+    sub.add_parser("genkey", help="print a new LLMGATE_ENCRYPTION_KEY (encrypts provider API keys at rest)")
+    bk = sub.add_parser("backup", help="consistent online copy of the database (safe while the gateway is running)")
+    bk.add_argument("out", help="destination file (must not exist)")
+    es = sub.add_parser("encrypt-secrets", help="encrypt plaintext provider keys / re-encrypt with the primary key (rotation)")
+    es.add_argument("--dry-run", action="store_true")
     sd = sub.add_parser("seed", help="fill the database (LLMGATE_DATABASE_PATH) with sample providers, models, keys and usage history")
     sd.add_argument("--reset", action="store_true", help="wipe the database first")
     sd.add_argument("--no-usage", action="store_true", help="registry only, without 14 days of usage history")
@@ -215,6 +250,12 @@ def run() -> None:
         return dev.run(args)
     if args.cmd == "seed":
         return _seed_cmd(args)
+    if args.cmd == "backup":
+        return _backup(args.out)
+    if args.cmd == "genkey":
+        return print(secretbox.generate_key())
+    if args.cmd == "encrypt-secrets":
+        return _encrypt_secrets(args.dry_run)
     uvicorn.run("llmgate.main:create_app", factory=True, host=args.host, port=args.port)
 
 

@@ -5,7 +5,7 @@ import time
 import pytest
 
 from conftest import ADMIN, admin, bearer, sso_login
-from test_routing_prefs import chat, key, model, provider
+from test_routing_prefs import model, provider
 
 H = ADMIN
 

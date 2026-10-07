@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from typing import Any, Literal
 
 from fastapi import APIRouter, Query, Request
@@ -50,7 +49,7 @@ def pre_provision(body: UserCreate, request: Request) -> dict[str, Any]:
 @router.patch("/users/{user_id}")
 def update_user(user_id: int, body: UserUpdate, request: Request) -> dict[str, Any]:
     db = get_db(request)
-    user = require_row(db, "users", user_id, "User")
+    require_row(db, "users", user_id, "User")  # 404 if missing
     me = getattr(request.state, "principal", None)
     changes: dict[str, Any] = {}
     if body.role is not None:

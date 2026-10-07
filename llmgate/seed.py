@@ -104,7 +104,6 @@ def backfill_usage(db: Database, models: dict[str, dict[str, Any]], keys: list[d
     """Synthetic but plausible history: office-hours curve, quieter weekends, errors, cache hits, fallbacks, guardrail hits."""
     rng = random.Random(rng_seed)
     t_now = time.time()
-    day0 = t_now - (t_now % 86400)
     usable = [k for k in keys if k["status"] == "active"]
     service_choices = [k for k in usable for _ in range(_SERVICE_WEIGHT.get(k["service"], 1))]
     kinds = {m[0]: m[1] for m in D.MODELS}

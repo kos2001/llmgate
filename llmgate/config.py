@@ -29,6 +29,14 @@ class Settings(BaseSettings):
     unhealthy_after: int = 1
 
     cors_origins: str = "*"
+    # Data retention in days; 0 keeps everything. Old usage/audit rows are deleted in the background every few hours.
+    usage_retention_days: float = 0
+    audit_retention_days: float = 0
+    # Optional: Fernet key(s) (`llmgate genkey`, comma separated to rotate) that encrypt provider API keys at rest.
+    encryption_key: str = ""
+    # Rejected-credential throttle per client address (0 disables). Behind a reverse proxy all clients share its address.
+    auth_fail_limit: int = 30
+    auth_fail_window_s: float = 60.0
 
     # ---- OpenRouter-style features ---------------------------------------------------------
     public_catalog: bool = True  # /api/v1/models, /endpoints and /providers need no key (like openrouter.ai); false = require one

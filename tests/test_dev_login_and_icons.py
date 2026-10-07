@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import io
-import json
 from urllib.parse import parse_qs, urlparse
 
 import httpx

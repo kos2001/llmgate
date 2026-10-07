@@ -6,7 +6,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from conftest import MockServer, admin, bearer, sso_login, sso_settings
+from conftest import bearer, sso_login, sso_settings
 from llmgate.config import Settings
 from llmgate.main import create_app
 

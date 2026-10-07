@@ -17,6 +17,7 @@ from fastapi import Request
 from fastapi.responses import JSONResponse, Response
 
 from . import cache as cache_mod
+from . import secretbox
 from . import guardrails, transforms
 from .auth import AuthContext, authenticate
 from .config import Settings
@@ -211,8 +212,9 @@ async def _open_upstream(client: httpx.AsyncClient, settings: Settings, att: Att
                          route: dict[str, Any]) -> httpx.Response:
     headers = {"content-type": "application/json", "accept": "text/event-stream" if att.stream else "application/json",
                "x-request-id": att.request_id}
-    if route["api_key"]:
-        headers["authorization"] = f"Bearer {route['api_key']}"
+    api_key = secretbox.decrypt(route["api_key"])
+    if api_key:
+        headers["authorization"] = f"Bearer {api_key}"
     timeout = httpx.Timeout(route["timeout_s"] or settings.default_read_timeout_s, connect=settings.connect_timeout_s)
     req = client.build_request("POST", route["base_url"].rstrip("/") + ENDPOINTS[att.endpoint][0],
                                json=_upstream_payload(att, model, route), headers=headers, timeout=timeout)

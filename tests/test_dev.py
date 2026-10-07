@@ -97,7 +97,7 @@ def test_python_dash_m_and_lazy_app_work(monkeypatch, tmp_path):
     application = main_mod.app  # ...`uvicorn llmgate.main:app` builds it on first access
     assert application.title == "llmgate" and (tmp_path / "lazy.db").exists()
     with pytest.raises(AttributeError):
-        main_mod.nonexistent
+        _ = main_mod.nonexistent  # module __getattr__ must still raise for unknown names
     monkeypatch.delitem(vars(main_mod), "app", raising=False)
     get_settings.cache_clear()
 

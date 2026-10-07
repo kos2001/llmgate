@@ -55,7 +55,7 @@ def required_role(method: str, path: str) -> str:
         return "admin"
     if method in SAFE_METHODS:
         return "viewer"
-    if path.startswith(("/admin/api/providers", "/admin/api/import", "/model/")):
+    if path.startswith(("/admin/api/providers", "/admin/api/import", "/admin/api/storage/prune", "/model/")):
         return "admin"  # these create or alter providers (URLs + upstream credentials)
     if path.startswith("/utils/") or path == "/admin/api/guardrails/test":
         return "viewer"  # read-only helpers that happen to be POST
@@ -174,8 +174,13 @@ async def resolve_principal(request: Request) -> Principal | None:
 
 async def admin_guard(request: Request) -> Principal:
     """FastAPI dependency for every admin route: authenticate, then enforce ``required_role``."""
+    throttle = request.app.state.throttle
+    ip = request.client.host if request.client else "?"
+    throttle.check(ip)
     principal = await resolve_principal(request)
     if principal is None:
+        if bearer_token(request) is not None:  # a credential was presented and refused (no credential at all is not an "attack")
+            throttle.fail(ip)
         raise GatewayError(401, "Authentication required. Sign in with SSO or send an admin/JWT bearer token.",
                            type="authentication_error", code="invalid_admin_token")
     request.state.principal = principal
