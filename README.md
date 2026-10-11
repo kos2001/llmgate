@@ -1,5 +1,7 @@
 # llmgate
 
+<p><strong lang="ko">한국어</strong> · <a href="README.en.md" lang="en">English</a></p>
+
 vLLM · Ollama · TGI 같은 **셀프호스팅 LLM 엔진 앞단에 두는 OpenRouter 스타일 게이트웨이**입니다.
 모델 레지스트리, 서비스/API 키 관리, 토큰·비용 추적, 라우팅/폴백, SSO(OIDC)·JWT 인증과 역할 기반 권한을 한 서비스로 제공하고,
 [OpenRouter](https://openrouter.ai) 와 [LiteLLM 프록시](https://github.com/BerriAI/litellm) 의 API 형태를 따라 기존 SDK/스크립트를 그대로 붙일 수 있습니다.
